@@ -3,8 +3,8 @@ name: IPQ60XX-LibWrt
 on:
   workflow_dispatch:
   workflow_call:
-  # schedule:
-  #   - cron: "0 18 * * *"
+  schedule:
+    - cron: "0 0 * * 6"
 
 permissions:
   contents: read
