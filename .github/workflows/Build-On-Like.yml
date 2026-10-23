@@ -1,0 +1,19 @@
+name: Build-On-Like
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  IPQ60XX-LibWrt:
+    if: >
+      github.event.issue.title == '👍 点赞编译触发器' &&
+      github.event.comment.author_association == 'OWNER'
+    uses: ./.github/workflows/IPQ60XX-LibWrt.yml
+    permissions:
+      contents: write
+      actions: write

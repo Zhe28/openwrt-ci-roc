@@ -365,6 +365,10 @@ jobs:
       cancel-in-progress: false
 
     steps:
+    - name: Compute Release Tag(计算版本化标签)
+      id: rel_tag
+      run: echo "tag=${{ inputs.firmware_tag }}-$(date +%Y.%m)" >> "$GITHUB_OUTPUT"
+
     - name: Download Firmware Artifact(下载固件产物)
       uses: actions/download-artifact@v4
       with:
@@ -374,11 +378,11 @@ jobs:
     - name: Upload Firmware To Release(发布固件)
       uses: ncipollo/release-action@v1
       with:
-        name: ${{ inputs.firmware_tag }}
+        name: ${{ steps.rel_tag.outputs.tag }}
         allowUpdates: true
         replacesArtifacts: true
         artifactErrorsFailBuild: true
-        tag: ${{ inputs.firmware_tag }}
+        tag: ${{ steps.rel_tag.outputs.tag }}
         token: ${{ github.token }}
         artifacts: artifacts/firmware/*
         body: |
