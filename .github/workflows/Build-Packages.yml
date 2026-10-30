@@ -31,6 +31,8 @@ on:
         options:
           - ALL
           - nginx
+          - redis
+          - pgsql
           - luci-app-aria2
           - luci-app-frpc
           - luci-app-frps

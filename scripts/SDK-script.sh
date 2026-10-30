@@ -116,8 +116,14 @@ normalize_package_selection() {
     lucky)
       printf 'luci-app-lucky\n'
       ;;
+    redis | redis-server | redis-cli)
+      printf 'redis\n'
+      ;;
+    pgsql | postgres | postgresql | postgresql-server)
+      printf 'pgsql\n'
+      ;;
     *)
-      die "Unsupported PACKAGE_SELECTION: ${1:-} (supported: all, nginx, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2)"
+      die "Unsupported PACKAGE_SELECTION: ${1:-} (supported: all, nginx, redis, pgsql, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2, postgres, postgresql)"
       ;;
   esac
 }
@@ -944,6 +950,20 @@ generate_artifact_filters() {
     add_artifact_package luci-i18n-lucky-zh-cn
   fi
 
+  if selection_in redis; then
+    config_package_enabled redis-server && add_artifact_package redis-server
+    config_package_enabled redis-cli && add_artifact_package redis-cli
+    config_package_enabled redis-utils && add_artifact_package redis-utils
+    config_package_enabled redis-full && add_artifact_package redis-full
+  fi
+
+  if selection_in pgsql; then
+    config_package_enabled pgsql-server && add_artifact_package pgsql-server
+    config_package_enabled pgsql-cli && add_artifact_package pgsql-cli
+    config_package_enabled pgsql-cli-extra && add_artifact_package pgsql-cli-extra
+    config_package_enabled libpq && add_artifact_package libpq
+  fi
+
   if selection_in luci-theme-aurora; then
     config_package_enabled luci-theme-aurora && add_artifact_package luci-theme-aurora
     if config_package_enabled luci-app-aurora-config; then
@@ -1051,6 +1071,22 @@ artifact_package_group() {
     package_file_matches_name "$package_file_name" luci-i18n-argon-config-zh-cn ||
     package_file_matches_name "$package_file_name" luci-i18n-argon-config-zh-tw; then
     printf 'luci-theme-argon\n'
+    return 0
+  fi
+
+  if package_file_matches_name "$package_file_name" redis-server ||
+    package_file_matches_name "$package_file_name" redis-cli ||
+    package_file_matches_name "$package_file_name" redis-utils ||
+    package_file_matches_name "$package_file_name" redis-full; then
+    printf 'redis\n'
+    return 0
+  fi
+
+  if package_file_matches_name "$package_file_name" pgsql-server ||
+    package_file_matches_name "$package_file_name" pgsql-cli ||
+    package_file_matches_name "$package_file_name" pgsql-cli-extra ||
+    package_file_matches_name "$package_file_name" libpq; then
+    printf 'pgsql\n'
     return 0
   fi
 
@@ -1233,6 +1269,22 @@ generate_compile_targets() {
 
   if selection_in luci-app-lucky && config_package_enabled luci-app-lucky; then
     add_compile_target package/lucky/luci-app-lucky/compile
+  fi
+
+  if selection_in redis && {
+    config_package_enabled redis-server ||
+      config_package_enabled redis-cli ||
+      config_package_enabled redis-full
+  } && [ -d "$SDK_ROOT/package/feeds/packages/redis" ]; then
+    add_compile_target package/feeds/packages/redis/compile
+  fi
+
+  if selection_in pgsql && {
+    config_package_enabled pgsql-server ||
+      config_package_enabled pgsql-cli ||
+      config_package_enabled libpq
+  } && [ -d "$SDK_ROOT/package/feeds/packages/postgresql" ]; then
+    add_compile_target package/feeds/packages/postgresql/compile
   fi
 
   if selection_in luci-theme-aurora && ! artifact_group_should_be_skipped luci-theme-aurora; then

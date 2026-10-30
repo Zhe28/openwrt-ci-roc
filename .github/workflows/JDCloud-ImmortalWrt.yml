@@ -21,9 +21,9 @@ jobs:
       repo_branch: openwrt-25.12
       config_file: configs/JDCloud.config
       firmware_tag: JDCloud
-      kernel_file: kernel-6.18
+      kernel_file: kernel-6.12
       artifact_prefix: Arthur.Athena
       manifest_file: immortalwrt-qualcommax-ipq60xx.manifest
       delete_old_workflows: true
       release_summary: >-
-        这是开启全功能NSS的6.18内核固件，默认主题为Aurora；该固件在ImmortalWrt的基础上，添加了额外的软件包cpufreq、ddns、upnp、wol、samba4、vlmcsd、aria2、autoreboot、uhttpd、frps、frpc、diskman、hd-idle、acme、openlist2、wireguard、watchcat、3cat、passwall、gecoosac，并添加了若干工具，具体详见JDCloud.config(NoWiFi.config)和General.config。
+        这是开启全功能NSS的 6.12 内核固件（与官方 25.12-SNAPSHOT 内核版本一致，方便直接安装官方源的 kmod 包），默认主题为 Aurora；机型只保留京东云雅典娜 RE-CS-02。已安装：cpufreq、ddns、upnp、wol、samba4、vlmcsd、aria2、autoreboot、frps、frpc、openlist2、watchcat、3cat、passwall、wechatpush、zerotier、athena-led，Web 界面由 nginx（nginx-mod-luci）提供，具体详见 JDCloud.config 和 General.config。
