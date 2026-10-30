@@ -23,6 +23,10 @@ OPENLIST2_REPO="${OPENLIST2_REPO:-https://github.com/laipeng668/luci-app-openlis
 OPENLIST2_REF="${OPENLIST2_REF:-main}"
 LUCKY_REPO="${LUCKY_REPO:-https://github.com/gdy666/luci-app-lucky}"
 LUCKY_REF="${LUCKY_REF:-main}"
+# 官方 OpenWrt packages feed 里没有 node 运行时（lang/node 下只有一个 node-javascript-obfuscator），
+# node 只存在于 immortalwrt/packages，所以流水线要从这里 sparse 取，跟 nginx 的做法一样
+NODE_REPO="${NODE_REPO:-https://github.com/immortalwrt/packages}"
+NODE_REF="${NODE_REF:-openwrt-25.12}"
 OPENWRT_TARGET="${OPENWRT_TARGET:-x86}"
 OPENWRT_SUBTARGET="${OPENWRT_SUBTARGET:-64}"
 OPENWRT_TARGET_PROFILE="${OPENWRT_TARGET_PROFILE:-}"
@@ -122,8 +126,17 @@ normalize_package_selection() {
     pgsql | postgres | postgresql | postgresql-server)
       printf 'pgsql\n'
       ;;
+    mariadb | mysql | mysql-server)
+      printf 'mariadb\n'
+      ;;
+    node | nodejs | npm)
+      printf 'node\n'
+      ;;
+    python | python3)
+      printf 'python3\n'
+      ;;
     *)
-      die "Unsupported PACKAGE_SELECTION: ${1:-} (supported: all, nginx, redis, pgsql, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2, postgres, postgresql)"
+      die "Unsupported PACKAGE_SELECTION: ${1:-} (supported: all, nginx, redis, pgsql, mariadb, node, python3, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2, postgres, postgresql, mysql, nodejs, npm, python)"
       ;;
   esac
 }
@@ -758,6 +771,9 @@ load_custom_packages() {
       lucky/Makefile \
       luci-app-lucky/Makefile
   fi
+
+  # node 不在官方 feed 里；clone 到 feeds/packages/lang/node/node 后由 feeds install 建符号链接
+  selection_in node && git_sparse_clone "$NODE_REF" "$NODE_REPO" feeds/packages lang/node/node
 }
 
 prune_luci_translations() {
@@ -964,6 +980,31 @@ generate_artifact_filters() {
     config_package_enabled libpq && add_artifact_package libpq
   fi
 
+  if selection_in mariadb; then
+    config_package_enabled mariadb-server && add_artifact_package mariadb-server
+    config_package_enabled mariadb-server-base && add_artifact_package mariadb-server-base
+    config_package_enabled mariadb-client && add_artifact_package mariadb-client
+    config_package_enabled mariadb-client-extra && add_artifact_package mariadb-client-extra
+    config_package_enabled mariadb-server-extra && add_artifact_package mariadb-server-extra
+  fi
+
+  # node 的产物名带 ABI_VERSION 后缀（NODEJS_22 -> node127，NODEJS_24 -> node137，
+  # NODEJS_26 -> node147），所以三个都列出来，实际存在的那个才会被收集
+  if selection_in node && config_package_enabled node; then
+    add_artifact_package node127
+    add_artifact_package node137
+    add_artifact_package node147
+    config_package_enabled node-npm && add_artifact_package node-npm
+  fi
+
+  if selection_in python3; then
+    config_package_enabled python3 && add_artifact_package python3
+    config_package_enabled python3-base && add_artifact_package python3-base
+    config_package_enabled python3-light && add_artifact_package python3-light
+    config_package_enabled python3-pip && add_artifact_package python3-pip
+    config_package_enabled libpython3 && add_artifact_package libpython3
+  fi
+
   if selection_in luci-theme-aurora; then
     config_package_enabled luci-theme-aurora && add_artifact_package luci-theme-aurora
     if config_package_enabled luci-app-aurora-config; then
@@ -1087,6 +1128,32 @@ artifact_package_group() {
     package_file_matches_name "$package_file_name" pgsql-cli-extra ||
     package_file_matches_name "$package_file_name" libpq; then
     printf 'pgsql\n'
+    return 0
+  fi
+
+  if package_file_matches_name "$package_file_name" mariadb-server ||
+    package_file_matches_name "$package_file_name" mariadb-server-base ||
+    package_file_matches_name "$package_file_name" mariadb-server-extra ||
+    package_file_matches_name "$package_file_name" mariadb-client ||
+    package_file_matches_name "$package_file_name" mariadb-client-extra; then
+    printf 'mariadb\n'
+    return 0
+  fi
+
+  if package_file_matches_name "$package_file_name" node127 ||
+    package_file_matches_name "$package_file_name" node137 ||
+    package_file_matches_name "$package_file_name" node147 ||
+    package_file_matches_name "$package_file_name" node-npm; then
+    printf 'node\n'
+    return 0
+  fi
+
+  if package_file_matches_name "$package_file_name" python3 ||
+    package_file_matches_name "$package_file_name" python3-base ||
+    package_file_matches_name "$package_file_name" python3-light ||
+    package_file_matches_name "$package_file_name" python3-pip ||
+    package_file_matches_name "$package_file_name" libpython3; then
+    printf 'python3\n'
     return 0
   fi
 
@@ -1285,6 +1352,25 @@ generate_compile_targets() {
       config_package_enabled libpq
   } && [ -d "$SDK_ROOT/package/feeds/packages/postgresql" ]; then
     add_compile_target package/feeds/packages/postgresql/compile
+  fi
+
+  if selection_in mariadb && {
+    config_package_enabled mariadb-server ||
+      config_package_enabled mariadb-client
+  } && [ -d "$SDK_ROOT/package/feeds/packages/mariadb" ]; then
+    add_compile_target package/feeds/packages/mariadb/compile
+  fi
+
+  if selection_in node && config_package_enabled node && [ -d "$SDK_ROOT/package/feeds/packages/node" ]; then
+    add_compile_target package/feeds/packages/node/compile
+  fi
+
+  if selection_in python3 && {
+    config_package_enabled python3 ||
+      config_package_enabled python3-light ||
+      config_package_enabled python3-base
+  } && [ -d "$SDK_ROOT/package/feeds/packages/python3" ]; then
+    add_compile_target package/feeds/packages/python3/compile
   fi
 
   if selection_in luci-theme-aurora && ! artifact_group_should_be_skipped luci-theme-aurora; then
