@@ -49,13 +49,14 @@
 - 雅典娜只有 512MB 内存：数据库与 Node/Python 服务默认开机自启，同时全开容易 OOM，请按实际用途只启用需要的几个。
 - 每次固件构建都会记录第三方仓库的实际分支和 commit，并在 Release 中附带 `<固件前缀>.third-party-sources.txt` 供核对；该记录文件不会写入固件。
 - 添加或修改 `xx.yml` 文件，最后点击 `Actions` 运行要编译的 `workflow` 即可开始编译。
-- 内置 node / python3 / mariadb 之后单次固件编译约 2-4 小时，`Build-OpenWrt` 的 `timeout-minutes` 为 360；编译完成后在仓库主页 [Releases](https://github.com/Zhe28/openwrt-ci-roc/releases) 对应 Tag 标签内下载固件。
+- 内置 node / python3 / mariadb 之后固件编译时间明显变长（参考 SDK 侧实测：只编 `node` 一个 job 就要 190~210 分钟），`Build-OpenWrt` 的 `timeout-minutes` 为 360，已接近 Actions 单 job 上限；编译完成后在仓库主页 [Releases](https://github.com/Zhe28/openwrt-ci-roc/releases) 对应 Tag 标签内下载固件。
 
 ## 单独编译软件包
 - 点击 `Actions` 运行 `Build-Packages`，`sdk_version` 可选择 `ALL` 同时编译全部版本，或选择 `main` 主线 snapshots、`23.05`、`24.10`、`25.12` 系列的最新稳定版 SDK。
 - 默认同时编译 `x86-64` 和 `aarch64` 两个架构：`x86/64` 使用 `configs/x86-64.config + configs/Packages.config`；`aarch64` 在 `main`、`25.12` 使用 `configs/JDCloud.config + configs/Packages.config`，在 `23.05`、`24.10` 使用 SDK 脚本内置的 rax3000m 配置 + `configs/Packages.config`。
 - `package` 默认是 `ALL`，下拉里除了 `nginx` 和 `luci-app-aria2`、`luci-app-frpc`、`luci-app-frps`、`luci-app-gecoosac`、`luci-app-lucky`、`luci-app-openlist2`、`luci-theme-argon`、`luci-theme-aurora` 这些 LuCI 入口，还新增了 `redis`、`pgsql`、`mariadb`、`node`、`python3`；选择 LuCI 软件包时会同时编译并发布对应基础包或主题配置插件，其中 `luci-app-aria2` 会一并处理 `aria2` 和 `ariang`。旧的 `aria2`、`ariang`、`frp`、`gecoosac`、`lucky`、`openlist2` 输入仅作为兼容别名保留，`postgres`/`postgresql`、`mysql`、`nodejs`/`npm`、`python` 同样是别名。
-- `node` 和 `python3` 是重编译包（`node` 单个就要 40~90 分钟），`Build-Packages` 的 `timeout-minutes` 已相应提到 360。只想编一个时请把 `package` 选成对应项而不是 `ALL`。
+- `node` 是最重的一个包：实测**只选 `node`** 时单个 job（含下载 SDK、准备 feeds、编译、收集产物、上传）耗时 **190~210 分钟**（`25.12` aarch64 207 分钟 / x86-64 192 分钟，`24.10` aarch64 199 分钟 / x86-64 184 分钟），因为 SDK 必须先编出 `python3/host` 与 `python-setuptools/host` 才能编 V8。
+- `timeout-minutes: 360` 已经是 GitHub Actions 单个 job 的上限，不能再往上调。因此**不建议把 `node` 和 `mariadb`、`python3`、`pgsql` 塞进同一次 `ALL`**：`node` 一项就占掉 200 分钟，剩下的很容易把 job 顶到超时。`package` 只接受单个选项（不支持逗号列表），按需请选具体的一项。
 - 脚本会按每个矩阵的版本和架构从 `https://downloads.openwrt.org/` 自动查找对应 SDK，先验证官方签名和 SHA-256，再在本次构建中使用同一组精确 URL 与哈希，避免 snapshots 更新造成前后不一致。
 - SDK 签名信任锚来自 OpenWrt 官方 [`openwrt/keyring`](https://github.com/openwrt/keyring) 密钥仓库的构建公钥，仓库内固定主指纹为 `8A8BC12F46B836C0F9CDB36F1D53D1877742E911`；未知签名会直接终止构建，官方换钥时需人工核对后更新公钥。
 - `Build-Packages` 不使用 GitHub Actions 持久缓存；SDK 每次构建都会重新下载并验证签名和 SHA-256，软件包源码也会重新拉取。
