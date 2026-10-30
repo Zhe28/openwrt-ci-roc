@@ -9,10 +9,10 @@ on:
         type: boolean
         default: true
       ipq807x_libwrt:
-        description: 运行 IPQ807X-LibWrt
+        description: 运行 IPQ807X-LibWrt（本机用不到，默认关闭）
         required: false
         type: boolean
-        default: true
+        default: false
       jdcloud_immortalwrt:
         description: 运行 JDCloud-ImmortalWrt
         required: false
@@ -53,12 +53,14 @@ jobs:
         contents: write
         actions: write
 
-    IPQ807X-LibWrt:
-      if: ${{ github.event_name == 'schedule' || inputs.ipq807x_libwrt }}
-      uses: ./.github/workflows/IPQ807X-LibWrt.yml
-      permissions:
-        contents: write
-        actions: write
+    # IPQ807X 与本机（京东云雅典娜 / IPQ60XX）无关，已停掉以节省 Actions 时间。
+    # 恢复方法：取消注释本 job 的 6 行，并把上面 inputs.ipq807x_libwrt 的 default 改回 true。
+    # IPQ807X-LibWrt:
+    #   if: ${{ github.event_name == 'schedule' || inputs.ipq807x_libwrt }}
+    #   uses: ./.github/workflows/IPQ807X-LibWrt.yml
+    #   permissions:
+    #     contents: write
+    #     actions: write
 
     JDCloud-ImmortalWrt:
       if: ${{ github.event_name == 'schedule' || inputs.jdcloud_immortalwrt }}
