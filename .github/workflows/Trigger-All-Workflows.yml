@@ -90,4 +90,7 @@ jobs:
         contents: write
         actions: read
       with:
-        sdk_version: ALL
+        # 每周只编雅典娜对应的 25.12 系列：4 个 SDK 全跑等于 8 个 job 每个都要编
+        # node / python3 / mariadb，Actions 时间翻倍且老 SDK 里 node 更容易失败。
+        # 需要 23.05 / 24.10 / main 时手动运行 Build-Packages 选对应版本即可。
+        sdk_version: '25.12'

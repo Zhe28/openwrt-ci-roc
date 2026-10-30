@@ -26,7 +26,7 @@
 - 官方 ImmortalWrt 源里**没有雅典娜**这个机型，所以设备定义依赖 `laipeng668` 的 fork。
 
 ## 定时与手动触发
-- `Trigger-All-Workflows`：定时 `0 18 * * 5`（周五 18:00 UTC，北京时间周六 02:00）串起 `IPQ60XX-LibWrt`、`JDCloud-ImmortalWrt`、`JDCloud-NoWiFi-ImmortalWrt`、`x86-64-ImmortalWrt` 与 `Build-Packages`；手动运行时每条流水线都有独立的布尔开关。
+- `Trigger-All-Workflows`：定时 `0 18 * * 5`（周五 18:00 UTC，北京时间周六 02:00）串起 `IPQ60XX-LibWrt`、`JDCloud-ImmortalWrt`、`JDCloud-NoWiFi-ImmortalWrt`、`x86-64-ImmortalWrt` 与 `Build-Packages`；手动运行时每条流水线都有独立的布尔开关。其中 `Build-Packages` 每周只传 `sdk_version: 25.12`（雅典娜对应系列，2 个 job），需要 `main`、`23.05`、`24.10` 时手动运行 `Build-Packages` 选对应版本。
 - `IPQ60XX-LibWrt` 另有独立定时 `0 0 * * 6`（北京时间周六 08:00）。
 - 各机型 wrapper 同时支持 `workflow_dispatch`，只想编一台机器时可以直接运行它自己的 yml；`Build-OpenWrt.yml` 是 `workflow_call` 复用工，不能单独运行。
 - `Build-On-Like`：在标题为 `👍 点赞编译触发器` 的 Issue 下由仓库 OWNER 发表评论，即可触发一次 `IPQ60XX-LibWrt` 构建。
