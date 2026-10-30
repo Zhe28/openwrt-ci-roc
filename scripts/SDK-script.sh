@@ -208,7 +208,12 @@ resolve_sdk_url() {
     return
   fi
 
-  sdk_base_url="$(resolve_sdk_base_url)"
+  sdk_base_url="$(resolve_sdk_base_url)" || return 1
+  [ -n "$sdk_base_url" ] || {
+    log "Unable to resolve an SDK base URL for OpenWrt $OPENWRT_SDK_VERSION" >&2
+    return 1
+  }
+
   log "Resolve OpenWrt $OPENWRT_SDK_VERSION SDK for $OPENWRT_TARGET/$OPENWRT_SUBTARGET"
   sdk_href="$(
     curl -fL \
@@ -252,7 +257,13 @@ resolve_sdk_base_url() {
     return
   fi
 
-  release_version="$(resolve_latest_release_version "$sdk_version")"
+  release_version="$(resolve_latest_release_version "$sdk_version")" || return 1
+  # die() 写在 $(...) 里只会结束子 shell，空版本号会一路传到这里拼成 releases//targets，
+  # 所以这一层必须自己兜住，让上层的重试循环能真正接手
+  [ -n "$release_version" ] || {
+    log "OpenWrt release series was not found: $sdk_version" >&2
+    return 1
+  }
   printf '%s/releases/%s/targets/%s/%s\n' "${OPENWRT_DOWNLOADS_BASE_URL%/}" "$release_version" "$OPENWRT_TARGET" "$OPENWRT_SUBTARGET"
 }
 
@@ -267,8 +278,11 @@ resolve_latest_release_version() {
       --connect-timeout 20 \
       --max-time 120 \
       "${OPENWRT_DOWNLOADS_BASE_URL%/}/releases/" |
-      grep -oE 'href="[0-9]+\.[0-9]+(\.[0-9]+)?/"' |
-      sed -E 's/^href="([^"]+)\/"/\1/' |
+      # 目录列表的链接写法可能是 "25.12.6/"、"/releases/25.12.6/" 或 "./25.12.6/"，
+      # 三种都要吃下；这里只负责剥掉 href= 外壳并取最后一段路径，
+      # 版本号合法性由后面那两条 grep 把关
+      grep -oE 'href="[^"]*[0-9]+\.[0-9]+(\.[0-9]+)?/"' |
+      sed -E 's/^href="//; s/"$//; s|/$||; s|.*/||' |
       grep -E "^${series//./\\.}(\\.[0-9]+)?$" |
       sort -V |
       tail -n 1 || true
@@ -421,7 +435,11 @@ prepare_sdk_metadata() {
   local attempt
   local retry_count=1
 
-  if is_true "$SDK_METADATA_REFRESH" && [ -z "$SDK_URL" ]; then
+  # 只要 URL 没有钉死，就一律按 SDK_METADATA_RETRY_COUNT 重试：
+  # 原来只有 main 会重试（workflow 里 SDK_METADATA_REFRESH 只对 main 为 true），
+  # 而 releases 系列的解析同样会被 downloads.openwrt.org 的抖动或列表页改版打到，
+  # 一次失败就 die 会让整个 matrix 的 8 个 job 全红
+  if [ -z "$SDK_URL" ]; then
     validate_sdk_metadata_retry_count
     retry_count="$SDK_METADATA_RETRY_COUNT"
   fi
