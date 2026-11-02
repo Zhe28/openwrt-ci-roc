@@ -112,9 +112,9 @@ jobs:
         else:
             raise SystemExit(f"Unsupported arch: {selected_arch}")
 
-        def build_for(sdk_version, architecture):
+        def build_for(sdk_version, architecture, package_split, package_selection):
             if architecture == "x86-64":
-                return {
+                entry = {
                     "sdk_version": sdk_version,
                     "name": "x86-64",
                     "openwrt_target": "x86",
@@ -122,9 +122,8 @@ jobs:
                     "openwrt_target_profile": "",
                     "config_files": "configs/x86-64.config configs/Packages.config",
                 }
-
-            if sdk_version in {"23.05", "24.10"}:
-                return {
+            elif sdk_version in {"23.05", "24.10"}:
+                entry = {
                     "sdk_version": sdk_version,
                     "name": "aarch64",
                     "openwrt_target": "mediatek",
@@ -132,27 +131,62 @@ jobs:
                     "openwrt_target_profile": "rax3000m",
                     "config_files": "configs/Packages.config",
                 }
+            else:
+                entry = {
+                    "sdk_version": sdk_version,
+                    "name": "aarch64",
+                    "openwrt_target": "qualcommax",
+                    "openwrt_subtarget": "ipq60xx",
+                    "openwrt_target_profile": "",
+                    "config_files": "configs/JDCloud.config configs/Packages.config",
+                }
 
-            return {
-                "sdk_version": sdk_version,
-                "name": "aarch64",
-                "openwrt_target": "qualcommax",
-                "openwrt_subtarget": "ipq60xx",
-                "openwrt_target_profile": "",
-                "config_files": "configs/JDCloud.config configs/Packages.config",
-            }
+            entry["package_split"] = package_split
+            entry["package_selection"] = package_selection
+            return entry
+
+        # node 单独一个包就要 190~210 分钟（SDK 得先编 python3/host 与 python-setuptools/host 才能编 V8），
+        # 和其它包挤在同一个 job 里很容易顶破 timeout-minutes: 360（GitHub Actions 单 job 硬上限）。
+        # 因此 package=ALL 时把 node 拆成独立的 matrix 格子。
+        # 不能改成“调用两次 Build-Packages”：Release 用的是 ncipollo/release-action 且
+        # replacesArtifacts: true，两条并行 run 会互相删掉对方刚上传的产物。
+        NON_NODE_PACKAGES = ",".join([
+            "nginx",
+            "redis",
+            "pgsql",
+            "mariadb",
+            "python3",
+            "luci-app-aria2",
+            "luci-app-frpc",
+            "luci-app-frps",
+            "luci-app-gecoosac",
+            "luci-app-lucky",
+            "luci-app-openlist2",
+            "luci-theme-argon",
+            "luci-theme-aurora",
+        ])
+
+        def package_splits(package):
+            if package == "all":
+                return (
+                    ("packages", NON_NODE_PACKAGES),
+                    ("node", "node"),
+                )
+            # 逗号列表只用于给脚本选择范围，分组名里的逗号换成 + 以免污染 artifact 名称
+            return ((package.replace(",", "+"), package),)
 
         include = [
-            build_for(sdk_version, architecture)
+            build_for(sdk_version, architecture, split, package_selection)
             for sdk_version in selected_sdk_versions
             for architecture in selected_architectures
+            for split, package_selection in package_splits(selected_package)
         ]
 
         print(f"matrix={json.dumps({'include': include}, separators=(',', ':'))}")
         PY
 
   Build:
-    name: Build (${{ matrix.sdk_version }} / ${{ matrix.name }})
+    name: Build (${{ matrix.sdk_version }} / ${{ matrix.name }} / ${{ matrix.package_split }})
     runs-on: ubuntu-24.04
     needs: Prepare
     timeout-minutes: 360
@@ -230,7 +264,7 @@ jobs:
         PACKAGE_CONFIG_FILES: ${{ matrix.config_files }}
         PACKAGE_ARCH_NAME: ${{ matrix.name }}
         PACKAGE_SELECTED_ARCH: ${{ inputs.arch }}
-        PACKAGE_SELECTION: ${{ inputs.package }}
+        PACKAGE_SELECTION: ${{ matrix.package_selection }}
         OPENWRT_SDK_VERSION: ${{ matrix.sdk_version }}
         SDK_CACHE_DIR: ${{ runner.temp }}/openwrt-sdk-cache
         SDK_METADATA_REFRESH: ${{ matrix.sdk_version == 'main' && 'true' || 'false' }}
@@ -245,7 +279,7 @@ jobs:
       if: ${{ always() && !cancelled() }}
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.sdk_version }}-Packages-${{ matrix.name }}
+        name: ${{ matrix.sdk_version }}-Packages-${{ matrix.name }}-${{ matrix.package_split }}
         path: artifacts/packages/*
         if-no-files-found: error
         compression-level: 0
@@ -300,3 +334,4 @@ jobs:
           - 源码来源：[laipeng668/packages](https://github.com/laipeng668/packages)（aria2、ariang、frp-binary、nginx分支）、[laipeng668/luci](https://github.com/laipeng668/luci)（frp分支）、[laipeng668/luci-app-gecoosac](https://github.com/laipeng668/luci-app-gecoosac)、[gdy666/luci-app-lucky](https://github.com/gdy666/luci-app-lucky)、[laipeng668/luci-app-openlist2](https://github.com/laipeng668/luci-app-openlist2)、[jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon)、[jerrykuku/luci-app-argon-config](https://github.com/jerrykuku/luci-app-argon-config)、[eamonxg/luci-theme-aurora](https://github.com/eamonxg/luci-theme-aurora)、[eamonxg/luci-app-aurora-config](https://github.com/eamonxg/luci-app-aurora-config)
           - 数据库与运行时包（redis、pgsql、mariadb、node、python3）直接编译自 SDK 自带的官方 packages feed，本仓库不 fork、不覆盖版本；`mysql` 由 `mariadb-server`（`PROVIDES:=mysql-server`）提供；`node` 的产物名带 ABI 后缀（`node127`）。这些包的 libc/libopenssl 等基础依赖仍需从软件源补齐。
           - 说明：Release 附件按 `<SDK>-<软件包>-<架构>.zip` 分组，普通分组内的 `.apk/.ipk` 文件也使用对应架构后缀；`luci-theme-argon` 和 `luci-theme-aurora` 使用 `all` 架构后缀，`arch=ALL` 时各自只保留一份。下载后先解压，`apk` 软件包使用 `apk add --allow-untrusted *.apk` 安装，`ipk` 软件包使用 `opkg install *.ipk` 安装。
+          - 分组编译：`package=ALL` 时矩阵会拆成 `packages`（nginx、redis、pgsql、mariadb、python3 与全部 LuCI 包）和 `node` 两组分别编译。实测 `node` 单独一组约 190~210 分钟，其余包约 150 分钟；旧的不拆分矩阵在 25.12 x86-64 上跑满 360 分钟超时被取消，只有 aarch64 以 352 分钟勉强完成。

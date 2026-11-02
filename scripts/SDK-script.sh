@@ -85,60 +85,106 @@ is_true() {
   esac
 }
 
-normalize_package_selection() {
-  local selection="${1:-all}"
+normalize_one_selection_token() {
+  # 单个选项 -> NORMALIZED_SELECTION；未知选项返回 1 交给外层统一报错。
+  # 这里刻意不调 die()：调用方一旦把它放进 $(...)，die 只会结束子 shell，
+  # 空结果会一路传下去（SDK 元数据那几处就是栽在这个坑上）。
+  local selection="$1"
 
-  selection="${selection,,}"
   case "$selection" in
     "" | all | "全部")
-      printf 'all\n'
+      NORMALIZED_SELECTION=all
       ;;
     frp | nginx | luci-app-aria2 | luci-app-frpc | luci-app-frps | luci-app-gecoosac | luci-app-lucky | luci-app-openlist2 | luci-theme-argon | luci-theme-aurora)
-      printf '%s\n' "$selection"
+      NORMALIZED_SELECTION="$selection"
       ;;
     aria2 | ariang)
-      printf 'luci-app-aria2\n'
+      NORMALIZED_SELECTION=luci-app-aria2
       ;;
     frpc)
-      printf 'luci-app-frpc\n'
+      NORMALIZED_SELECTION=luci-app-frpc
       ;;
     frps)
-      printf 'luci-app-frps\n'
+      NORMALIZED_SELECTION=luci-app-frps
       ;;
     nginx-full | nginx-ssl)
-      printf 'nginx\n'
+      NORMALIZED_SELECTION=nginx
       ;;
     gecoosac)
-      printf 'luci-app-gecoosac\n'
+      NORMALIZED_SELECTION=luci-app-gecoosac
       ;;
     openlist | openlist2)
-      printf 'luci-app-openlist2\n'
+      NORMALIZED_SELECTION=luci-app-openlist2
       ;;
     luci-app-openlist)
-      printf 'luci-app-openlist2\n'
+      NORMALIZED_SELECTION=luci-app-openlist2
       ;;
     lucky)
-      printf 'luci-app-lucky\n'
+      NORMALIZED_SELECTION=luci-app-lucky
       ;;
     redis | redis-server | redis-cli)
-      printf 'redis\n'
+      NORMALIZED_SELECTION=redis
       ;;
     pgsql | postgres | postgresql | postgresql-server)
-      printf 'pgsql\n'
+      NORMALIZED_SELECTION=pgsql
       ;;
     mariadb | mysql | mysql-server)
-      printf 'mariadb\n'
+      NORMALIZED_SELECTION=mariadb
       ;;
     node | nodejs | npm)
-      printf 'node\n'
+      NORMALIZED_SELECTION=node
       ;;
     python | python3)
-      printf 'python3\n'
+      NORMALIZED_SELECTION=python3
       ;;
     *)
-      die "Unsupported PACKAGE_SELECTION: ${1:-} (supported: all, nginx, redis, pgsql, mariadb, node, python3, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2, postgres, postgresql, mysql, nodejs, npm, python)"
+      return 1
       ;;
   esac
+
+  return 0
+}
+
+normalize_package_selection() {
+  # 支持逗号分隔的多选（例如 nginx,redis,mariadb,python3），也兼容单个值。
+  # 这样每周跑一趟时可以把 node 拆成单独一次调用，避免 node(约 200 分钟) 和其它包
+  # 挤在同一个 job 里顶破 timeout-minutes: 360 这个硬上限。
+  local raw="${1:-all}"
+  local token
+  local normalized=""
+
+  raw="${raw,,}"
+
+  local IFS=','
+  for token in $raw; do
+    token="${token//[[:space:]]/}"
+    [ -n "$token" ] || continue
+
+    if ! normalize_one_selection_token "$token"; then
+      die "Unsupported PACKAGE_SELECTION: $token (in ${1:-}) (supported: all, nginx, redis, pgsql, mariadb, node, python3, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2, postgres, postgresql, mysql, nodejs, npm, python; 多项请用逗号分隔)"
+    fi
+
+    # 选了 all 就吞掉其它一切；重复项直接去重
+    if [ "$NORMALIZED_SELECTION" = all ]; then
+      normalized=all
+      break
+    fi
+
+    case ",$normalized," in
+      *",$NORMALIZED_SELECTION,"*) continue ;;
+    esac
+
+    if [ -n "$normalized" ]; then
+      normalized="$normalized,$NORMALIZED_SELECTION"
+    else
+      normalized="$NORMALIZED_SELECTION"
+    fi
+  done
+
+  [ -n "$normalized" ] || normalized=all
+
+  NORMALIZED_PACKAGE_SELECTION="$normalized"
+  return 0
 }
 
 normalize_sdk_version() {
@@ -184,7 +230,12 @@ selection_is_all() {
 }
 
 selection_is() {
-  [ "$PACKAGE_SELECTION" = "$1" ]
+  # PACKAGE_SELECTION 可能是逗号列表，这里做成员判断
+  case ",$PACKAGE_SELECTION," in
+    *",$1,"*) return 0 ;;
+  esac
+
+  return 1
 }
 
 selection_in() {
@@ -1680,7 +1731,8 @@ if [ "${BASH_SOURCE[0]}" != "$0" ]; then
   return 0
 fi
 
-PACKAGE_SELECTION="$(normalize_package_selection "$PACKAGE_SELECTION")"
+normalize_package_selection "$PACKAGE_SELECTION"
+PACKAGE_SELECTION="$NORMALIZED_PACKAGE_SELECTION"
 OPENWRT_SDK_VERSION="$(normalize_sdk_version "$OPENWRT_SDK_VERSION")"
 
 mkdir -p "$RUNNER_TEMP" "$SDK_CACHE_DIR"
