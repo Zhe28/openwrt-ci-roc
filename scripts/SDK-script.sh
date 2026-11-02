@@ -782,7 +782,9 @@ remove_builtin_packages() {
       "$SDK_ROOT/feeds/luci/applications/luci-app-frps"
   fi
 
-  selection_in nginx && rm -rf "$SDK_ROOT/feeds/packages/net/nginx"
+  if selection_in nginx; then
+    rm -rf "$SDK_ROOT/feeds/packages/net/nginx"
+  fi
 
   if selection_in luci-theme-argon; then
     rm -rf \
@@ -811,7 +813,9 @@ load_custom_packages() {
       "$SDK_ROOT/feeds/luci/applications/luci-app-frps/Makefile"
   fi
 
-  selection_in nginx && git_sparse_clone "$NGINX_REF" "$PACKAGES_REPO" feeds/packages net/nginx
+  if selection_in nginx; then
+    git_sparse_clone "$NGINX_REF" "$PACKAGES_REPO" feeds/packages net/nginx
+  fi
 
   if selection_in luci-app-gecoosac; then
     git_clone_package_repo "$GECOOSAC_REPO" "$GECOOSAC_REF" "$SDK_ROOT/package/luci-app-gecoosac" \
@@ -842,7 +846,15 @@ load_custom_packages() {
   fi
 
   # node 不在官方 feed 里；clone 到 feeds/packages/lang/node/node 后由 feeds install 建符号链接
-  selection_in node && git_sparse_clone "$NODE_REF" "$NODE_REPO" feeds/packages lang/node/node
+  # 注意：这里必须是 if 块。写成 `selection_in node && git_sparse_clone ...` 时，没选 node 会让
+  # 这一行（也就是函数最后一行）返回 1，函数随之返回 1，而脚本开头是 set -Eeuo pipefail，
+  # 调用方又是一个普通命令 —— 结果整个脚本被静默终止（exit 1，一行错误都不打印）。
+  # 实测踩过：Build-Packages 选 nginx（或 package=ALL 拆出来的 packages 那一格）时必炸。
+  if selection_in node; then
+    git_sparse_clone "$NODE_REF" "$NODE_REPO" feeds/packages lang/node/node
+  fi
+
+  return 0
 }
 
 prune_luci_translations() {
