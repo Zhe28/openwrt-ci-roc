@@ -282,8 +282,8 @@ jobs:
       run: |
         cd "$OPENWRT_PATH"
         ccache -M 2G
-        make tools -j"$(nproc)" || make tools V=s
-        make toolchain -j"$(nproc)" || make toolchain V=s
+        make tools/compile -j"$(nproc)" || make tools/compile V=s
+        make toolchain/compile -j"$(nproc)" || make toolchain/compile V=s
         make target/linux/prepare
         make target/linux/compile -j"$(nproc)" || make target/linux/compile V=s
 
