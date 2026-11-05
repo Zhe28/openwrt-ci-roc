@@ -337,4 +337,20 @@ fi
 # echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/passwall/rules/chnlist
 
 ./scripts/feeds update -i -a
+
+### pgvector: 包源无现成包，构建时注入 pgsql-server 编译（PGXS 方式） ###
+if package_enabled pgsql-server; then
+  PGVECTOR_VERSION="${PGVECTOR_VERSION:-v0.8.7}"
+  clone_with_retry pgvector-src \
+    --depth=1 \
+    --no-tags \
+    --branch "$PGVECTOR_VERSION" \
+    --single-branch \
+    https://github.com/pgvector/pgvector.git
+  rm -rf pgvector-src/.git feeds/packages/libs/postgresql/files/vector
+  mkdir -p feeds/packages/libs/postgresql/files
+  mv pgvector-src feeds/packages/libs/postgresql/files/vector
+  patch -p1 -N -r /dev/null -d feeds/packages/libs/postgresql -i "$WORKSPACE/scripts/patches/postgresql-pgvector.patch"
+fi
+
 ./scripts/feeds install -a

@@ -1,0 +1,31 @@
+--- a/Makefile
++++ b/Makefile
+@@ -162,6 +162,11 @@
+ HOST_CFLAGS += -std=gnu99
+
+ # Need a native zic and pg_config for build
++define Build/Prepare
++	$(call Build/Prepare/Default)
++	$(CP) $(PKG_BUILD_DIR)/vector $(PKG_BUILD_DIR)/contrib/vector
++endef
++
+ define Host/Compile
+ 	+$(HOST_MAKE_VARS) MAKELEVEL=0 $(MAKE) -C $(HOST_BUILD_DIR)/src/bin/pg_config CC="$(HOSTCC)"
+ 	+$(HOST_MAKE_VARS) MAKELEVEL=0 $(MAKE) -C $(HOST_BUILD_DIR)/src/timezone CC="$(HOSTCC)"
+@@ -179,6 +184,8 @@
+
+ define Build/Compile
+ 	$(MAKE) -C $(PKG_BUILD_DIR) MAKELEVEL=0 all contrib
++	$(MAKE) -C $(PKG_BUILD_DIR) MAKELEVEL=0 install DESTDIR=$(PKG_INSTALL_DIR)
++	$(MAKE) -C $(PKG_BUILD_DIR)/contrib/vector MAKELEVEL=0 PG_CONFIG=true PGXS="$(PKG_INSTALL_DIR)/usr/lib/postgresql/pgxs/src/makefiles/pgxs.mk" install DESTDIR=$(PKG_INSTALL_DIR)
+ endef
+
+ # because PROFILE means something else in the project Makefile
+@@ -215,6 +222,7 @@
+ 	$(INSTALL_DIR) $(1)/usr/lib
+ 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/postgresql \
+ 		$(1)/usr/lib/
++	$(RM) -r $(1)/usr/lib/postgresql/pgxs
+
+ 	$(INSTALL_DIR) $(1)/lib/functions
+ 	$(INSTALL_BIN) ./files/postgresql.sh $(1)/lib/functions/

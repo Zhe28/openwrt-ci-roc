@@ -26,4 +26,4 @@ jobs:
       manifest_file: immortalwrt-qualcommax-ipq60xx.manifest
       rename_qualcommax_to_nowifi: true
       release_summary: >-
-        这是开启全功能NSS、关闭 ath11k 无 WiFi 的 6.12 内核固件（与官方 25.12-SNAPSHOT 内核版本一致，方便直接安装官方源的 kmod 包），默认主题为 Aurora；机型只保留京东云雅典娜 RE-CS-02。已安装：cpufreq、ddns、upnp、wol、samba4、vlmcsd、aria2、autoreboot、frps、frpc、watchcat、3cat、passwall、wechatpush、gecoosac、athena-led，Web 界面由 nginx（nginx-mod-luci）提供，具体详见 JDCloud.NoWiFi.config 和 General.config。
+        这是开启全功能NSS、关闭 ath11k 无 WiFi 的 6.12 内核固件（与官方 25.12-SNAPSHOT 内核版本一致，方便直接安装官方源的 kmod 包），默认主题为 Aurora；机型只保留京东云雅典娜 RE-CS-02。已安装：cpufreq、ddns、upnp、wol、samba4、vlmcsd、aria2、autoreboot、watchcat、3cat、homeproxy(sing-box透明代理)、wechatpush、gecoosac、athena-led，Web 界面由 nginx（nginx-mod-luci）提供，具体详见 JDCloud.NoWiFi.config 和 General.config。
