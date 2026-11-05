@@ -741,6 +741,50 @@ jobs:
           - 固件编译前最后一次➦[主源码](${{ inputs.repo_url }})更新记录
           - ${{ needs.Prepare.outputs.version_info }}
 
+  # ── 通知：构建结束（成功或失败）推送 Gotify ──────────────────────────
+  Notify:
+    runs-on: ubuntu-24.04
+    needs:
+      - Build-Packages
+      - Assemble
+      - Release
+    if: ${{ always() }}
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+    - name: Send Gotify Notification(发送构建通知)
+      env:
+        GOTIFY_URL: http://hzer.cc/gotify
+        GOTIFY_TOKEN: ${{ secrets.GOTIFY_TOKEN }}
+        RESULT_PACKAGES: ${{ needs.Build-Packages.result }}
+        RESULT_ASSEMBLE: ${{ needs.Assemble.result }}
+        RESULT_RELEASE: ${{ needs.Release.result }}
+        FIRMWARE_TAG: ${{ inputs.firmware_tag }}
+      run: |
+        if [ -z "$GOTIFY_TOKEN" ]; then
+          echo "GOTIFY_TOKEN secret 未设置，跳过通知。"
+          exit 0
+        fi
+        tag="${FIRMWARE_TAG}-$(date +%Y.%m)"
+        run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        if [ "$RESULT_ASSEMBLE" = "success" ] && [ "$RESULT_RELEASE" = "success" ]; then
+          title="✅ 固件构建成功: ${tag}"
+          message="矩阵编译完成，Release 已更新。详情: ${run_url}"
+          priority=5
+        else
+          title="❌ 固件构建失败: ${tag}"
+          message="分组=${RESULT_PACKAGES} 组装=${RESULT_ASSEMBLE} 发布=${RESULT_RELEASE} 详情: ${run_url}"
+          priority=8
+        fi
+        payload="$(jq -n --arg title "$title" --arg message "$message" --argjson priority "$priority" \
+          '{title: $title, message: $message, priority: $priority}')"
+        curl -sf -X POST "${GOTIFY_URL}/message" \
+          -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -d "$payload" || echo "::warning::Gotify 通知发送失败。"
+
   Cleanup:
     runs-on: ubuntu-24.04
     needs:
