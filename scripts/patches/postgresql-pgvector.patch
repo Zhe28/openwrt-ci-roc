@@ -6,7 +6,7 @@
  # Need a native zic and pg_config for build
 +define Build/Prepare
 +	$(call Build/Prepare/Default)
-+	$(CP) $(PKG_BUILD_DIR)/vector $(PKG_BUILD_DIR)/contrib/vector
++	$(CP) ./files/vector $(PKG_BUILD_DIR)/contrib/vector
 +endef
 +
  define Host/Compile
