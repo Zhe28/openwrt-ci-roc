@@ -1,4 +1,5 @@
 name: IPQ60XX-LibWrt
+# 新仓首次索引占位注释（无功能影响）
 
 on:
   workflow_dispatch:
