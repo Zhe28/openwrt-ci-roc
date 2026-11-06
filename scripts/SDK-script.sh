@@ -845,13 +845,15 @@ load_custom_packages() {
       luci-app-lucky/Makefile
   fi
 
-  # node 不在官方 feed 里；clone 到 feeds/packages/lang/node/node 后由 feeds install 建符号链接
-  # 注意：这里必须是 if 块。写成 `selection_in node && git_sparse_clone ...` 时，没选 node 会让
-  # 这一行（也就是函数最后一行）返回 1，函数随之返回 1，而脚本开头是 set -Eeuo pipefail，
-  # 调用方又是一个普通命令 —— 结果整个脚本被静默终止（exit 1，一行错误都不打印）。
-  # 实测踩过：Build-Packages 选 nginx（或 package=ALL 拆出来的 packages 那一格）时必炸。
+  # node: 换用官方社区 musl 预编译二进制 wrapper 包（scripts/packages/node），
+  # 不再交叉编译 V8；仍然放到 feeds/packages/lang/node/node，由 feeds install 建符号链接，
+  # 产物名 node127/node-npm 不变。
+  # 注意：这里必须是 if 块（写成 `selection_in node && ...` 时没选 node 会让函数返回 1，
+  # 在 set -Eeuo pipefail 下整个脚本被静默终止）。实测踩过。
   if selection_in node; then
-    git_sparse_clone "$NODE_REF" "$NODE_REPO" feeds/packages lang/node/node
+    mkdir -p "$SDK_ROOT/feeds/packages/lang/node"
+    rm -rf "$SDK_ROOT/feeds/packages/lang/node/node"
+    cp -a "$WORKSPACE/scripts/packages/node" "$SDK_ROOT/feeds/packages/lang/node/node"
   fi
 
   return 0

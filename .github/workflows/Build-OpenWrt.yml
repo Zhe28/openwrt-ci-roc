@@ -310,8 +310,8 @@ jobs:
   # toolchain/内核从 core-tree+staging 缓存恢复，不重复编译。
   Build-Packages:
     runs-on: ubuntu-24.04
-    # node 内核身编译(含 V8)就要 190~210 分钟，旧的 180 上限必杀它；放宽到 300，
-    # 慢死场景由 apt 步骤的 timeout-k(90 分钟)与 Retry-Failed 自动重试兜底。
+    # node 已换预编译二进制 wrapper(几分钟)，300 上限保留作 apt 断流/慢死场景的兜底
+    # （旧 180 是 node 源码编译时代定的），另有 Retry-Failed 自动重试。
     timeout-minutes: 300
     needs: Prepare
     permissions:
@@ -321,7 +321,7 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - db-pg    # pgsql(+pgvector patch)
+          - db-pg    # pgsql + 独立 pgvector 包(scripts/packages/pgvector)
           - db-misc  # mariadb + redis
           - node
           - python
@@ -408,12 +408,14 @@ jobs:
         # samba4 无独立开关，全靠 luci-app-samba4 依赖拉入——node/db/python 组用不到它，
         # 一并置 n 防止 samba4 在这三组重复编译(单组白烧 30~60 分钟)。
         case "$GROUP_KEY" in
+          # pgvector 必须跟 pgsql 一起 trim：pgvector=y 残留会让 defconfig 把已置 n 的
+          # pgsql-server 重新拉回来，导致每组都白编一遍 postgresql。
           db-pg)   TRIM='node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|mariadb|redis|luci-app-samba4' ;;
-          db-misc) TRIM='node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|pgsql|luci-app-samba4' ;;
-          node)    TRIM='pgsql|mariadb|redis|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|luci-app-samba4' ;;
-          python)  TRIM='pgsql|mariadb|redis|node|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|luci-app-samba4' ;;
-          net)     TRIM='pgsql|mariadb|redis|node|python3|homeproxy|luci-app-|luci-theme-|luci-i18n-' ;;
-          apps)    TRIM='pgsql|mariadb|redis|node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd' ;;
+          db-misc) TRIM='node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|pgsql|pgvector|luci-app-samba4' ;;
+          node)    TRIM='pgsql|pgvector|mariadb|redis|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|luci-app-samba4' ;;
+          python)  TRIM='pgsql|pgvector|mariadb|redis|node|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|luci-app-samba4' ;;
+          net)     TRIM='pgsql|pgvector|mariadb|redis|node|python3|homeproxy|luci-app-|luci-theme-|luci-i18n-' ;;
+          apps)    TRIM='pgsql|pgvector|mariadb|redis|node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd' ;;
           *) echo "Error: unknown matrix group: $GROUP_KEY" >&2; exit 1 ;;
         esac
         echo "TRIM_PATTERN=$TRIM" >> "$GITHUB_ENV"

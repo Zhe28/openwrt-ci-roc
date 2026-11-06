@@ -338,19 +338,22 @@ fi
 
 ./scripts/feeds update -i -a
 
-### pgvector: 包源无现成包，构建时注入 pgsql-server 编译（PGXS 方式） ###
+### node: 换用官方社区 musl 预编译二进制 wrapper（scripts/packages/node） ###
+### 不再在 CI 交叉编译 V8；包符号/产物名(node127、node-npm)与 feeds 版一致 ###
+if package_enabled node; then
+  if [ -d feeds/packages/lang/node/node ]; then
+    rm -rf feeds/packages/lang/node/node
+    cp -a "$WORKSPACE/scripts/packages/node" feeds/packages/lang/node/node
+  elif [ -d feeds/packages/lang/node ]; then
+    rm -rf feeds/packages/lang/node
+    cp -a "$WORKSPACE/scripts/packages/node" feeds/packages/lang/node
+  fi
+fi
+
+### pgvector: 包源无现成包，独立自建小包（手动交叉编译 vector.so，几分钟） ###
 if package_enabled pgsql-server; then
-  PGVECTOR_VERSION="${PGVECTOR_VERSION:-v0.8.7}"
-  clone_with_retry pgvector-src \
-    --depth=1 \
-    --no-tags \
-    --branch "$PGVECTOR_VERSION" \
-    --single-branch \
-    https://github.com/pgvector/pgvector.git
-  rm -rf pgvector-src/.git feeds/packages/libs/postgresql/files/vector
-  mkdir -p feeds/packages/libs/postgresql/files
-  mv pgvector-src feeds/packages/libs/postgresql/files/vector
-  patch -p1 -N -r /dev/null -d feeds/packages/libs/postgresql -i "$WORKSPACE/scripts/patches/postgresql-pgvector.patch"
+  rm -rf package/pgvector
+  cp -a "$WORKSPACE/scripts/packages/pgvector" package/pgvector
 fi
 
 ./scripts/feeds install -a
