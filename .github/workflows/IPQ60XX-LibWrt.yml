@@ -17,6 +17,7 @@ jobs:
     permissions:
       contents: write
       actions: write
+    secrets: inherit
     with:
       repo_url: https://github.com/laipeng668/openwrt-6.x.git
       repo_branch: 25.12-nss

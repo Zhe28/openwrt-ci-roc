@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: write
       actions: write
+    secrets: inherit
     with:
       repo_url: https://github.com/laipeng668/immortalwrt.git
       repo_branch: openwrt-25.12
