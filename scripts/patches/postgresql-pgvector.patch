@@ -17,7 +17,7 @@
  define Build/Compile
  	$(MAKE) -C $(PKG_BUILD_DIR) MAKELEVEL=0 all contrib
 +	$(MAKE) -C $(PKG_BUILD_DIR) MAKELEVEL=0 install DESTDIR=$(PKG_INSTALL_DIR)
-+	$(MAKE) -C $(PKG_BUILD_DIR)/contrib/vector MAKELEVEL=0 PG_CONFIG=true OPTFLAGS="" PGXS="$(PKG_INSTALL_DIR)/usr/lib/postgresql/pgxs/src/makefiles/pgxs.mk" install DESTDIR=$(PKG_INSTALL_DIR)
++	$(MAKE) -C $(PKG_BUILD_DIR)/contrib/vector MAKELEVEL=0 OPTFLAGS="" install DESTDIR=$(PKG_INSTALL_DIR)
  endef
 
  # because PROFILE means something else in the project Makefile

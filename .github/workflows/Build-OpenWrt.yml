@@ -784,24 +784,41 @@ jobs:
           - 固件编译前最后一次➦[主源码](${{ inputs.repo_url }})更新记录
           - ${{ needs.Prepare.outputs.version_info }}
 
-  # ── 阶段 2.5：失败分组自动重跑 ───────────────────────────────────────
-  # runner 失联/慢死属于抽签型基础设施故障。已成功的分组已上传组 ccache，
-  # rerun_failed_jobs 只重跑失败分组及其下游 job，成功分组保持完成状态，
-  # 相当于让死过的组重新抽签，全程最多 3 次尝试。
+  # ── 阶段 2.5：失败自动重触发整轮 ─────────────────────────────────────
+  # rerun_failed_jobs 对含 reusable 调用的 run 不可用(404)，GITHUB_TOKEN 也不允许
+  # 触发 workflow 事件，因此用 GH_PAT secret 走 workflow_dispatch 重开一轮：
+  # 已成功分组靠 ccache/core-tree 缓存秒过，只有死过的组重新抽签。
+  # 防循环：最近两轮已完成的运行均失败则停手等人工介入。
   Retry-Failed:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: Build-Packages
-    if: ${{ always() && needs.Build-Packages.result == 'failure' && github.run_attempt < 3 }}
+    if: ${{ always() && needs.Build-Packages.result == 'failure' }}
     permissions:
-      actions: write
+      actions: read
     steps:
-    - name: Re-run Failed Groups(自动重跑失败分组)
+    - name: Re-trigger Workflow(自动重触发整轮)
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ secrets.GH_PAT }}
+        TOP_WORKFLOW: ${{ github.workflow }}
       run: |
-        echo "Attempt ${GITHUB_RUN_ATTEMPT} of Build-Packages failed; re-running failed jobs (completed groups stay completed)."
-        gh api --method POST "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/rerun_failed_jobs"
+        if [ -z "$GH_TOKEN" ]; then
+          echo "::warning::GH_PAT secret 未配置，跳过自动重试（可在 Actions 页手动重新运行）。"
+          exit 0
+        fi
+        wf_path="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows?per_page=100" -q ".workflows[] | select(.name==\"$TOP_WORKFLOW\") | .path")"
+        if [ -z "$wf_path" ]; then
+          echo "::warning::找不到顶层 workflow '$TOP_WORKFLOW' 的文件路径，跳过自动重试。"
+          exit 0
+        fi
+        recent="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/${wf_path}/runs?per_page=5" -q '[.workflow_runs[] | select(.status=="completed") | .conclusion] | .[0:2]')"
+        echo "最近两轮结论: $recent"
+        if [ "$recent" = '["failure","failure"]' ]; then
+          echo "::error::最近两轮均失败，停止自动重试，请人工介入。"
+          exit 1
+        fi
+        echo "自动重触发 $wf_path ..."
+        gh api --method POST "/repos/${GITHUB_REPOSITORY}/actions/workflows/${wf_path}/dispatches" -f ref="${GITHUB_REF}"
 
   # ── 通知：构建结束（成功或失败）推送 Gotify ──────────────────────────
   Notify:
