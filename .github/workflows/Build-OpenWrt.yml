@@ -85,15 +85,26 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo -E apt-get -y update
-        sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-          bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
-          git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
-          libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
-          genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
-          rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-        sudo -E systemctl daemon-reload
-        sudo timedatectl set-timezone "$TZ"
+        for attempt in 1 2 3; do
+          if timeout 900 sudo -E apt-get -y update; then break; fi
+          if [ "$attempt" -eq 3 ]; then echo "Error: apt-get update failed after 3 attempts" >&2; exit 1; fi
+          echo "::warning::apt-get update failed (attempt $attempt/3); retrying."
+          sleep $((attempt * 5))
+        done
+        for attempt in 1 2 3; do
+          if timeout 2400 sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
+            git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
+            libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
+            genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
+            rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev; then break; fi
+          if [ "$attempt" -eq 3 ]; then echo "Error: apt-get install failed after 3 attempts" >&2; exit 1; fi
+          echo "::warning::apt-get install failed (attempt $attempt/3); fixing and retrying."
+          sudo -E apt-get -y -f install || true
+          sleep $((attempt * 5))
+        done
+        timeout 120 sudo -E systemctl daemon-reload || echo "::warning::daemon-reload timed out; continuing."
+        timeout 120 sudo timedatectl set-timezone "$TZ" || echo "::warning::set-timezone timed out; continuing."
 
     - name: Checkout(检出代码)
       uses: actions/checkout@v4
@@ -316,15 +327,26 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo -E apt-get -y update
-        sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-          bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
-          git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
-          libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
-          genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
-          rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-        sudo -E systemctl daemon-reload
-        sudo timedatectl set-timezone "$TZ"
+        for attempt in 1 2 3; do
+          if timeout 900 sudo -E apt-get -y update; then break; fi
+          if [ "$attempt" -eq 3 ]; then echo "Error: apt-get update failed after 3 attempts" >&2; exit 1; fi
+          echo "::warning::apt-get update failed (attempt $attempt/3); retrying."
+          sleep $((attempt * 5))
+        done
+        for attempt in 1 2 3; do
+          if timeout 2400 sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
+            git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
+            libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
+            genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
+            rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev; then break; fi
+          if [ "$attempt" -eq 3 ]; then echo "Error: apt-get install failed after 3 attempts" >&2; exit 1; fi
+          echo "::warning::apt-get install failed (attempt $attempt/3); fixing and retrying."
+          sudo -E apt-get -y -f install || true
+          sleep $((attempt * 5))
+        done
+        timeout 120 sudo -E systemctl daemon-reload || echo "::warning::daemon-reload timed out; continuing."
+        timeout 120 sudo timedatectl set-timezone "$TZ" || echo "::warning::set-timezone timed out; continuing."
 
     - name: Checkout(检出代码)
       uses: actions/checkout@v4
@@ -500,15 +522,26 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo -E apt-get -y update
-        sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-          bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
-          git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
-          libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
-          genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
-          rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-        sudo -E systemctl daemon-reload
-        sudo timedatectl set-timezone "$TZ"
+        for attempt in 1 2 3; do
+          if timeout 900 sudo -E apt-get -y update; then break; fi
+          if [ "$attempt" -eq 3 ]; then echo "Error: apt-get update failed after 3 attempts" >&2; exit 1; fi
+          echo "::warning::apt-get update failed (attempt $attempt/3); retrying."
+          sleep $((attempt * 5))
+        done
+        for attempt in 1 2 3; do
+          if timeout 2400 sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
+            git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
+            libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
+            genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
+            rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev; then break; fi
+          if [ "$attempt" -eq 3 ]; then echo "Error: apt-get install failed after 3 attempts" >&2; exit 1; fi
+          echo "::warning::apt-get install failed (attempt $attempt/3); fixing and retrying."
+          sudo -E apt-get -y -f install || true
+          sleep $((attempt * 5))
+        done
+        timeout 120 sudo -E systemctl daemon-reload || echo "::warning::daemon-reload timed out; continuing."
+        timeout 120 sudo timedatectl set-timezone "$TZ" || echo "::warning::set-timezone timed out; continuing."
 
     - name: Checkout(检出代码)
       uses: actions/checkout@v4
