@@ -423,7 +423,10 @@ jobs:
           *) echo "Error: unknown matrix group: $GROUP_KEY" >&2; exit 1 ;;
         esac
         echo "TRIM_PATTERN=$TRIM" >> "$GITHUB_ENV"
-        echo "GROUP_CCACHE_KEY=${CCACHE_GROUP_BASE}${GROUP_KEY}-${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
+        # 键不再带 run_id（2026-11-07）：旧键每轮新建 6 条缓存，失败轮的垃圾填满 10GB
+        # 缓存上限、把 coretree 逐出（#14 冷下载 117 分钟暴毙的根因之一）。
+        # 改就地更新；restore-keys 链不变，跨轮预热不受影响。
+        echo "GROUP_CCACHE_KEY=${CCACHE_GROUP_BASE}${GROUP_KEY}" >> "$GITHUB_ENV"
         echo "GROUP_CCACHE_RESTORE=${CCACHE_GROUP_BASE}${GROUP_KEY}-" >> "$GITHUB_ENV"
 
     - name: Cache Staging Directory(恢复工具链)
@@ -625,7 +628,7 @@ jobs:
     - name: Cache Assembled Ccache(跨分组ccache聚合)
       uses: actions/cache@v4
       with:
-        key: ${{ needs.Prepare.outputs.ccache_key }}-assemble-${{ github.run_id }}
+        key: ${{ needs.Prepare.outputs.ccache_key }}-assemble
         restore-keys: |
           ${{ needs.Prepare.outputs.ccache_key }}-assemble-
           ${{ needs.Prepare.outputs.ccache_group_base }}db-pg-
@@ -889,13 +892,16 @@ jobs:
       - Build-Packages
       - Assemble
       - Release
-    if: ${{ !cancelled() && needs.Assemble.result == 'success' && needs.Release.result == 'success' }}
+    # 失败轮也要执行（2026-11-07）：失败轮留下的缓存垃圾是配额爆掉、coretree 被逐出的
+    # 主因，必须每轮即时清扫；旧式"删除更旧版本"步骤仍只在全绿轮执行（见步骤级 if）。
+    if: ${{ always() && !cancelled() }}
     permissions:
       contents: read
       actions: write
 
     steps:
     - name: Delete Old Cache(删除旧缓存)
+      if: ${{ needs.Assemble.result == 'success' && needs.Release.result == 'success' }}
       env:
         CCACHE_KEY: ${{ needs.Prepare.outputs.ccache_key }}
         STAGING_KEY: ${{ needs.Prepare.outputs.staging_key }}
@@ -933,9 +939,25 @@ jobs:
         delete_old_cache_versions "$CCACHE_KEY"
         delete_old_cache_versions "$STAGING_KEY"
         delete_old_cache_versions "$CORETREE_KEY"
+        # 分组缓存已改就地键（不带 run_id），这里只清历史多版本残留
         for group in db-pg db-misc node python net apps; do
-          delete_old_cache_versions "${CCACHE_GROUP_BASE}${group}-${GITHUB_RUN_ID}"
+          delete_old_cache_versions "${CCACHE_GROUP_BASE}${group}"
         done
+
+    - name: Sweep Legacy Run-Scoped Cache(清扫带run_id的旧分组缓存)
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # 旧式分组/assemble 缓存键带 run_id，失败轮留下的垃圾会永久占住 10GB 配额，
+        # coretree 因此被反复逐出（#14 冷下载 117 分钟即为此）。分组/assemble 键现在
+        # 不再带 run_id：凡以 "G<group>-数字" 或 "assemble-数字" 结尾的条目都是旧式残留，
+        # 无条件删除；coretree/staging/ccache 三件套的后缀是配置哈希，不会被命中。
+        gh cache list --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --limit 10000 --json id,key |
+          jq -r '.[] | select(.key | test("-G(db-pg|db-misc|node|python|net|apps)-[0-9]+$") or test("-assemble-[0-9]+$")) | .id' |
+          while read -r cache_id; do
+            [ -n "$cache_id" ] || continue
+            gh cache delete --repo "$GITHUB_REPOSITORY" "$cache_id" || echo "::warning::Unable to delete legacy cache $cache_id."
+          done
 
     - name: Delete Old Workflows(删除旧工作流)
       if: ${{ inputs.delete_old_workflows }}
