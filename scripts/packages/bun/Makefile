@@ -40,8 +40,10 @@ define Package/bun
   SUBMENU:=Node.js
   TITLE:=Fast all-in-one JavaScript runtime & toolkit
   URL:=https://bun.sh/
-  # libstdc++.so.6 是 bun 的真实动态依赖（run17 打包期依赖检测确认）
-  DEPENDS:=@HAS_FPU @(aarch64||x86_64) +libstdcxx
+  # libstdc++.so.6 是 bun 的真实动态依赖（run17 打包期依赖检测确认）。
+  # 包符号名是 libstdcpp（main tree package/libs/toolchain，NAME:=libstdc++），
+  # 不存在的写法 libstdcxx 会让 kconfig 报 "does not exist" 且不安装（run18 死因）。
+  DEPENDS:=@HAS_FPU @(aarch64||x86_64) +libstdcpp
 endef
 
 define Package/bun/description
