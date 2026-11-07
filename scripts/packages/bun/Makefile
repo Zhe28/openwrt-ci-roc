@@ -40,7 +40,8 @@ define Package/bun
   SUBMENU:=Node.js
   TITLE:=Fast all-in-one JavaScript runtime & toolkit
   URL:=https://bun.sh/
-  DEPENDS:=@HAS_FPU @(aarch64||x86_64)
+  # libstdc++.so.6 是 bun 的真实动态依赖（run17 打包期依赖检测确认）
+  DEPENDS:=@HAS_FPU @(aarch64||x86_64) +libstdcxx
 endef
 
 define Package/bun/description
@@ -54,7 +55,13 @@ endef
 define Build/Configure
 endef
 
+# run17 打包期依赖检测报缺 libc.musl-aarch64.so.1：bun 官方 musl 二进制在
+# Alpine 构建，DT_NEEDED 用 Alpine 的 musl SONAME（libc.musl-<arch>.so.1），
+# OpenWrt 的 musl 提供的是 libc.so，OpenWrt 打包按 DT_NEEDED 查提供者查不到。
+# 用 patchelf 改写 DT_NEEDED 为 libc.so（tools/patchelf 是 main tree 自带
+# 宿主工具；node 的 unofficial-builds 二进制本身就链 libc.so 所以没这问题）。
 define Build/Compile
+	$(STAGING_DIR_HOST)/bin/patchelf --replace-needed libc.musl-$(ARCH).so.1 libc.so $(PKG_BUILD_DIR)/bin/bun
 endef
 
 # UNPACK_CMD 已剥掉 npm 的 package/ 顶层目录，二进制就在 PKG_BUILD_DIR/bin 下
