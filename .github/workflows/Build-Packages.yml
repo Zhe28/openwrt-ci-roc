@@ -35,6 +35,7 @@ on:
           - pgsql
           - mariadb
           - node
+          - bun
           - python3
           - luci-app-aria2
           - luci-app-frpc
@@ -155,6 +156,7 @@ jobs:
             "redis",
             "pgsql",
             "mariadb",
+            "bun",
             "python3",
             "luci-app-aria2",
             "luci-app-frpc",
@@ -332,6 +334,6 @@ jobs:
           - 选择的 SDK：${{ inputs.sdk_version }}
           - 选择的软件包：${{ inputs.package }}
           - 源码来源：[laipeng668/packages](https://github.com/laipeng668/packages)（aria2、ariang、frp-binary、nginx分支）、[laipeng668/luci](https://github.com/laipeng668/luci)（frp分支）、[laipeng668/luci-app-gecoosac](https://github.com/laipeng668/luci-app-gecoosac)、[gdy666/luci-app-lucky](https://github.com/gdy666/luci-app-lucky)、[laipeng668/luci-app-openlist2](https://github.com/laipeng668/luci-app-openlist2)、[jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon)、[jerrykuku/luci-app-argon-config](https://github.com/jerrykuku/luci-app-argon-config)、[eamonxg/luci-theme-aurora](https://github.com/eamonxg/luci-theme-aurora)、[eamonxg/luci-app-aurora-config](https://github.com/eamonxg/luci-app-aurora-config)
-          - 数据库与运行时包（redis、pgsql、mariadb、node、python3）直接编译自 SDK 自带的官方 packages feed，本仓库不 fork、不覆盖版本；`mysql` 由 `mariadb-server`（`PROVIDES:=mysql-server`）提供；`node` 的产物名带 ABI 后缀（`node127`）。这些包的 libc/libopenssl 等基础依赖仍需从软件源补齐。
+          - 数据库与运行时包（redis、pgsql、mariadb、python3）直接编译自 SDK 自带的官方 packages feed，本仓库不 fork、不覆盖版本；`mysql` 由 `mariadb-server`（`PROVIDES:=mysql-server`）提供。运行时 `node` 与 `bun` 是预编译二进制 wrapper（scripts/packages/node 取 unofficial-builds musl 二进制、产物名带 ABI 后缀 `node127`；scripts/packages/bun 取 Bun 官方 npm musl 二进制包、版本钉 1.4.4），CI 内解包即完成、不编译。这些包的 libc/libopenssl 等基础依赖仍需从软件源补齐。
           - 说明：Release 附件按 `<SDK>-<软件包>-<架构>.zip` 分组，普通分组内的 `.apk/.ipk` 文件也使用对应架构后缀；`luci-theme-argon` 和 `luci-theme-aurora` 使用 `all` 架构后缀，`arch=ALL` 时各自只保留一份。下载后先解压，`apk` 软件包使用 `apk add --allow-untrusted *.apk` 安装，`ipk` 软件包使用 `opkg install *.ipk` 安装。
-          - 分组编译：`package=ALL` 时矩阵会拆成 `packages`（nginx、redis、pgsql、mariadb、python3 与全部 LuCI 包）和 `node` 两组分别编译。实测 `node` 单独一组约 190~210 分钟，其余包约 150 分钟；旧的不拆分矩阵在 25.12 x86-64 上跑满 360 分钟超时被取消，只有 aarch64 以 352 分钟勉强完成。
+          - 分组编译：`package=ALL` 时矩阵会拆成 `packages`（nginx、redis、pgsql、mariadb、bun、python3 与全部 LuCI 包）和 `node` 两组分别编译。实测 `node` 单独一组约 190~210 分钟，其余包约 150 分钟；旧的不拆分矩阵在 25.12 x86-64 上跑满 360 分钟超时被取消，只有 aarch64 以 352 分钟勉强完成。

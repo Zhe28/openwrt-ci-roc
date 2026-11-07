@@ -356,4 +356,11 @@ if package_enabled pgsql-server; then
   cp -a "$WORKSPACE/scripts/packages/pgvector" package/pgvector
 fi
 
+### bun: 官方 npm 预编译 musl 二进制 wrapper（scripts/packages/bun） ###
+### 解包即完成；与 node 共存（feed 的 node-* 模块包仍依赖 node 的 ABI127） ###
+if package_enabled bun; then
+  rm -rf package/bun
+  cp -a "$WORKSPACE/scripts/packages/bun" package/bun
+fi
+
 ./scripts/feeds install -a

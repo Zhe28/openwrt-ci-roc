@@ -134,6 +134,9 @@ normalize_one_selection_token() {
     node | nodejs | npm)
       NORMALIZED_SELECTION=node
       ;;
+    bun | bun-runtime)
+      NORMALIZED_SELECTION=bun
+      ;;
     python | python3)
       NORMALIZED_SELECTION=python3
       ;;
@@ -161,7 +164,7 @@ normalize_package_selection() {
     [ -n "$token" ] || continue
 
     if ! normalize_one_selection_token "$token"; then
-      die "Unsupported PACKAGE_SELECTION: $token (in ${1:-}) (supported: all, nginx, redis, pgsql, mariadb, node, python3, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2, postgres, postgresql, mysql, nodejs, npm, python; 多项请用逗号分隔)"
+      die "Unsupported PACKAGE_SELECTION: $token (in ${1:-}) (supported: all, nginx, redis, pgsql, mariadb, node, bun, python3, luci-app-aria2, luci-app-frpc, luci-app-frps, luci-app-gecoosac, luci-app-lucky, luci-app-openlist2, luci-theme-argon, luci-theme-aurora; legacy aliases: aria2, ariang, frp, gecoosac, lucky, openlist2, postgres, postgresql, mysql, nodejs, npm, python; 多项请用逗号分隔)"
     fi
 
     # 选了 all 就吞掉其它一切；重复项直接去重
@@ -856,6 +859,13 @@ load_custom_packages() {
     cp -a "$WORKSPACE/scripts/packages/node" "$SDK_ROOT/feeds/packages/lang/node/node"
   fi
 
+  # bun: 官方 npm 预编译 musl 二进制 wrapper 包（scripts/packages/bun），
+  # 解包即完成；feed 没有 bun 原版，直接放 package/bun，与 node 共存。
+  if selection_in bun; then
+    rm -rf "$SDK_ROOT/package/bun"
+    cp -a "$WORKSPACE/scripts/packages/bun" "$SDK_ROOT/package/bun"
+  fi
+
   return 0
 }
 
@@ -1080,6 +1090,10 @@ generate_artifact_filters() {
     config_package_enabled node-npm && add_artifact_package node-npm
   fi
 
+  if selection_in bun && config_package_enabled bun; then
+    add_artifact_package bun
+  fi
+
   if selection_in python3; then
     config_package_enabled python3 && add_artifact_package python3
     config_package_enabled python3-base && add_artifact_package python3-base
@@ -1228,6 +1242,11 @@ artifact_package_group() {
     package_file_matches_name "$package_file_name" node147 ||
     package_file_matches_name "$package_file_name" node-npm; then
     printf 'node\n'
+    return 0
+  fi
+
+  if package_file_matches_name "$package_file_name" bun; then
+    printf 'bun\n'
     return 0
   fi
 
@@ -1446,6 +1465,10 @@ generate_compile_targets() {
 
   if selection_in node && config_package_enabled node && [ -d "$SDK_ROOT/package/feeds/packages/node" ]; then
     add_compile_target package/feeds/packages/node/compile
+  fi
+
+  if selection_in bun && config_package_enabled bun && [ -d "$SDK_ROOT/package/bun" ]; then
+    add_compile_target package/bun/compile
   fi
 
   if selection_in python3 && {

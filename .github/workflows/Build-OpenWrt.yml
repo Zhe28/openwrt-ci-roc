@@ -325,7 +325,7 @@ jobs:
         group:
           - db-pg    # pgsql + 独立 pgvector 包(scripts/packages/pgvector)
           - db-misc  # mariadb + redis
-          - node
+          - node     # node(ABI127 wrapper) + bun(官方 musl 二进制 wrapper)
           - python
           - net
           - apps
@@ -414,12 +414,13 @@ jobs:
         case "$GROUP_KEY" in
           # pgvector 必须跟 pgsql 一起 trim：pgvector=y 残留会让 defconfig 把已置 n 的
           # pgsql-server 重新拉回来，导致每组都白编一遍 postgresql。
-          db-pg)   TRIM='node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|mariadb|redis|luci-app-samba4' ;;
-          db-misc) TRIM='node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|pgsql|pgvector|luci-app-samba4' ;;
+          # bun 跟 node 一起 trim：只在 node 组编（官方 musl 二进制 wrapper，解包即完成）。
+          db-pg)   TRIM='node|bun|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|mariadb|redis|luci-app-samba4' ;;
+          db-misc) TRIM='node|bun|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|pgsql|pgvector|luci-app-samba4' ;;
           node)    TRIM='pgsql|pgvector|mariadb|redis|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|luci-app-samba4' ;;
-          python)  TRIM='pgsql|pgvector|mariadb|redis|node|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|luci-app-samba4' ;;
-          net)     TRIM='pgsql|pgvector|mariadb|redis|node|python3|homeproxy|luci-app-|luci-theme-|luci-i18n-' ;;
-          apps)    TRIM='pgsql|pgvector|mariadb|redis|node|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd' ;;
+          python)  TRIM='pgsql|pgvector|mariadb|redis|node|bun|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd|homeproxy|luci-app-samba4' ;;
+          net)     TRIM='pgsql|pgvector|mariadb|redis|node|bun|python3|homeproxy|luci-app-|luci-theme-|luci-i18n-' ;;
+          apps)    TRIM='pgsql|pgvector|mariadb|redis|node|bun|python3|sing-box|zerotier|nginx|nginx-full|uwsgi|miniupnpd' ;;
           *) echo "Error: unknown matrix group: $GROUP_KEY" >&2; exit 1 ;;
         esac
         echo "TRIM_PATTERN=$TRIM" >> "$GITHUB_ENV"
