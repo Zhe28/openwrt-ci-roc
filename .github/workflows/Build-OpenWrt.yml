@@ -93,14 +93,16 @@ jobs:
           sleep $((attempt * 5))
         done
         for attempt in 1 2 3; do
-          # asciidoc(texlive 全家桶数百MB)、antlr3(openjdk 数百MB)、uglifyjs(nodejs)
-          # 是 apt 断流重排的最大拖累（run 42247191534 即死在这三条链上），仓库无脚本引用，删除。
-          if timeout -k 60 1800 sudo -E apt-get -y install ack autoconf automake autopoint binutils bison build-essential \
+          # asciidoc/antlr3/uglifyjs、xmlto(其 Recommends 拽出 texlive+openjdk ~500MB)均已删——
+          # runs 42247191534/42282394229/42301608176 三处 apt 超时全部卡在 xmlto 拽出的 texlive 链
+          # （Ign: texlive-base/texlive-bibtex-extra 79MB…），OpenWrt 编译不调用 xmlto。
+          # Acquire::Retries 让 apt 自己对 Ign 断流内部重试，扛慢 mirror。
+          if timeout -k 60 1800 sudo -E apt-get -y -o Acquire::Retries=5 -o Acquire::http::Timeout=30 install ack autoconf automake autopoint binutils bison build-essential \
             bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
             git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
             libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
             genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
-            rsync scons squashfs-tools subversion swig texinfo upx-ucl unzip vim wget xmlto xxd zlib1g-dev; then break; fi
+            rsync scons squashfs-tools subversion swig texinfo upx-ucl unzip vim wget xxd zlib1g-dev; then break; fi
           if [ "$attempt" -eq 3 ]; then echo "Error: apt-get install failed after 3 attempts" >&2; exit 1; fi
           echo "::warning::apt-get install failed (attempt $attempt/3); fixing and retrying."
           sudo -E apt-get -y -f install || true
@@ -341,14 +343,16 @@ jobs:
           sleep $((attempt * 5))
         done
         for attempt in 1 2 3; do
-          # asciidoc(texlive 全家桶数百MB)、antlr3(openjdk 数百MB)、uglifyjs(nodejs)
-          # 是 apt 断流重排的最大拖累（run 42247191534 即死在这三条链上），仓库无脚本引用，删除。
-          if timeout -k 60 1800 sudo -E apt-get -y install ack autoconf automake autopoint binutils bison build-essential \
+          # asciidoc/antlr3/uglifyjs、xmlto(其 Recommends 拽出 texlive+openjdk ~500MB)均已删——
+          # runs 42247191534/42282394229/42301608176 三处 apt 超时全部卡在 xmlto 拽出的 texlive 链
+          # （Ign: texlive-base/texlive-bibtex-extra 79MB…），OpenWrt 编译不调用 xmlto。
+          # Acquire::Retries 让 apt 自己对 Ign 断流内部重试，扛慢 mirror。
+          if timeout -k 60 1800 sudo -E apt-get -y -o Acquire::Retries=5 -o Acquire::http::Timeout=30 install ack autoconf automake autopoint binutils bison build-essential \
             bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
             git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
             libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
             genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
-            rsync scons squashfs-tools subversion swig texinfo upx-ucl unzip vim wget xmlto xxd zlib1g-dev; then break; fi
+            rsync scons squashfs-tools subversion swig texinfo upx-ucl unzip vim wget xxd zlib1g-dev; then break; fi
           if [ "$attempt" -eq 3 ]; then echo "Error: apt-get install failed after 3 attempts" >&2; exit 1; fi
           echo "::warning::apt-get install failed (attempt $attempt/3); fixing and retrying."
           sudo -E apt-get -y -f install || true
@@ -544,14 +548,16 @@ jobs:
           sleep $((attempt * 5))
         done
         for attempt in 1 2 3; do
-          # asciidoc(texlive 全家桶数百MB)、antlr3(openjdk 数百MB)、uglifyjs(nodejs)
-          # 是 apt 断流重排的最大拖累（run 42247191534 即死在这三条链上），仓库无脚本引用，删除。
-          if timeout -k 60 1800 sudo -E apt-get -y install ack autoconf automake autopoint binutils bison build-essential \
+          # asciidoc/antlr3/uglifyjs、xmlto(其 Recommends 拽出 texlive+openjdk ~500MB)均已删——
+          # runs 42247191534/42282394229/42301608176 三处 apt 超时全部卡在 xmlto 拽出的 texlive 链
+          # （Ign: texlive-base/texlive-bibtex-extra 79MB…），OpenWrt 编译不调用 xmlto。
+          # Acquire::Retries 让 apt 自己对 Ign 断流内部重试，扛慢 mirror。
+          if timeout -k 60 1800 sudo -E apt-get -y -o Acquire::Retries=5 -o Acquire::http::Timeout=30 install ack autoconf automake autopoint binutils bison build-essential \
             bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
             git gperf haveged help2man intltool jq libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
             libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
             genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
-            rsync scons squashfs-tools subversion swig texinfo upx-ucl unzip vim wget xmlto xxd zlib1g-dev; then break; fi
+            rsync scons squashfs-tools subversion swig texinfo upx-ucl unzip vim wget xxd zlib1g-dev; then break; fi
           if [ "$attempt" -eq 3 ]; then echo "Error: apt-get install failed after 3 attempts" >&2; exit 1; fi
           echo "::warning::apt-get install failed (attempt $attempt/3); fixing and retrying."
           sudo -E apt-get -y -f install || true
