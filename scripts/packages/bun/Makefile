@@ -25,6 +25,13 @@ endif
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/bun-$(PKG_VERSION)
 
+# OpenWrt 默认解包（include/unpack.mk:6）是 tar -C $(PKG_BUILD_DIR)/.. -xf -，
+# 不剥顶层目录，要求 tar 内顶层目录名与 PKG_BUILD_DIR 一致。npm tarball 的顶层
+# 目录固定是 package/，与 bun-<版本> 不匹配，默认解包会把内容落在 build_dir 下
+# 的兄弟目录 package/ 里。改用官方 UNPACK_CMD 钩子边解包边剥一层，直接落进
+# PKG_BUILD_DIR（先例：openwrt/packages 的 debootstrap、ariang 同款写法）。
+UNPACK_CMD=$(STAGING_DIR_HOST)/bin/libdeflate-gzip -dc $(DL_DIR)/$(PKG_SOURCE) | $(TAR) -C $(1) -x --strip-components=1 -f -
+
 include $(INCLUDE_DIR)/package.mk
 
 define Package/bun
@@ -50,10 +57,10 @@ endef
 define Build/Compile
 endef
 
-# npm tarball 解包后带 package/ 前缀：$(PKG_BUILD_DIR)/package/bin/bun
+# UNPACK_CMD 已剥掉 npm 的 package/ 顶层目录，二进制就在 PKG_BUILD_DIR/bin 下
 define Package/bun/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(CP) $(PKG_BUILD_DIR)/package/bin/bun $(1)/usr/bin/
+	$(CP) $(PKG_BUILD_DIR)/bin/bun $(1)/usr/bin/
 endef
 
 $(eval $(call BuildPackage,bun))
