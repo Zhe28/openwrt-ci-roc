@@ -33,8 +33,10 @@ on:
         required: false
         type: boolean
         default: true
-  schedule:
-    - cron: "0 18 * * 5"
+  # 定时已移除（2026-11-07）：schedule 触发会绕过 inputs 一次并发拉起 5 个 build——
+  # 2026-11-06 首触发一夜造出 16 条分组缓存 + 2.3GB 外源 coretree，撑爆 10GB Actions
+  # 缓存上限，把 IPQ60XX 热缓存逐出，导致 run #14 冷下载 117 分钟后 runner 暴毙。
+  # 想一键全跑请手动 workflow_dispatch，不再让它自动周五撞车。
 
 permissions:
   contents: read
